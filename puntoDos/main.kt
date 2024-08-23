@@ -1,6 +1,5 @@
 import java.util.Scanner
 
-// Clase base para empleados y clientes
 open class Persona(
     var nombre: String,
     var documentoIdentidad: String,
@@ -8,7 +7,6 @@ open class Persona(
     var correoElectronico: String
 )
 
-// Clase para Empleados que hereda de Persona
 class Empleado(
     nombre: String,
     documentoIdentidad: String,
@@ -16,11 +14,11 @@ class Empleado(
     correoElectronico: String,
     var salario: Double,
     var dependencia: Dependencia,
-    var añoIngreso: Int,
-    var cargo: Cargo
+    var anioIngreso: Int,
+    var cargo: Cargo,
+    var subordinados: MutableList<Empleado> = mutableListOf() 
 ) : Persona(nombre, documentoIdentidad, sexo, correoElectronico)
 
-// Clase para Clientes que hereda de Persona
 class Cliente(
     nombre: String,
     documentoIdentidad: String,
@@ -30,18 +28,15 @@ class Cliente(
     var telefono: String
 ) : Persona(nombre, documentoIdentidad, sexo, correoElectronico)
 
-// Clase para Cargo
 class Cargo(
     var nombre: String,
     var nivelJerarquico: Int
 )
 
-// Clase para Dependencia
 class Dependencia(
     var nombre: String
 )
 
-// Clase para Empresa
 class Empresa(
     var razonSocial: String,
     var nit: String,
@@ -49,24 +44,20 @@ class Empresa(
     var empleados: MutableList<Empleado> = mutableListOf(),
     var clientes: MutableList<Cliente> = mutableListOf()
 ) {
-    // Método para obtener el valor de la nómina
     fun calcularNomina(): Double {
         return empleados.sumOf { it.salario }
     }
 
-    // Método para obtener la nómina por dependencia
     fun calcularNominaPorDependencia(dependencia: Dependencia): Double {
         return empleados.filter { it.dependencia.nombre == dependencia.nombre }.sumOf { it.salario }
     }
 
-    // Método para obtener el porcentaje de clientes por sexo
     fun porcentajeClientesPorSexo(sexo: String): Double {
         val totalClientes = clientes.size
         val clientesPorSexo = clientes.count { it.sexo == sexo }
         return if (totalClientes > 0) (clientesPorSexo.toDouble() / totalClientes) * 100 else 0.0
     }
 
-    // Método para mostrar porcentajes de clientes por los tres sexos
     fun mostrarPorcentajesDeClientesPorSexo() {
         val totalClientes = clientes.size
         val porcentajeMasculino = porcentajeClientesPorSexo("Masculino")
@@ -80,23 +71,25 @@ class Empresa(
         println("Total de clientes: $totalClientes")
     }
 
-    // Método para obtener la cantidad de empleados según el nombre del cargo
     fun cantidadEmpleadosPorCargo(nombreCargo: String): Int {
         return empleados.count { it.cargo.nombre == nombreCargo }
     }
 
-    // Método para obtener el empleado con más tiempo en la empresa
     fun empleadoConMasTiempo(): Empleado? {
-        return empleados.minByOrNull { it.añoIngreso }
+        return empleados.minByOrNull { it.anioIngreso }
     }
 
-    // CRUD para empleados
     fun añadirEmpleado(empleado: Empleado) {
         empleados.add(empleado)
     }
 
     fun eliminarEmpleado(documentoIdentidad: String) {
-        empleados.removeIf { it.documentoIdentidad == documentoIdentidad }
+        empleados.find { it.documentoIdentidad == documentoIdentidad }?.let { empleado ->
+            empleados.filter { it.subordinados.contains(empleado) }.forEach { jefe ->
+                jefe.subordinados.remove(empleado)
+            }
+            empleados.removeIf { it.documentoIdentidad == documentoIdentidad }
+        }
     }
 
     fun actualizarEmpleado(documentoIdentidad: String, nuevoEmpleado: Empleado) {
@@ -110,7 +103,6 @@ class Empresa(
         return empleados.find { it.documentoIdentidad == documentoIdentidad }
     }
 
-    // CRUD para clientes
     fun añadirCliente(cliente: Cliente) {
         clientes.add(cliente)
     }
@@ -131,11 +123,9 @@ class Empresa(
     }
 }
 
-// Función principal para ejecutar el programa de consola
 fun main() {
     val scanner = Scanner(System.`in`)
 
-    // Crear una empresa
     val empresa = Empresa("Mi Empresa", "123456789", "Calle Ejemplo 123")
 
     while (true) {
@@ -160,7 +150,6 @@ fun main() {
                 println("Nómina total de la empresa: ${empresa.calcularNomina()}")
             }
             4 -> {
-                // Selección de dependencia
                 val dependencias = listOf("ventas", "recursos humanos", "gerencia", "operativo")
                 var dependencia: Dependencia?
                 while (true) {
@@ -187,7 +176,7 @@ fun main() {
             7 -> {
                 val empleado = empresa.empleadoConMasTiempo()
                 if (empleado != null) {
-                    println("Empleado con más tiempo en la empresa: Nombre: ${empleado.nombre}, Dependencia: ${empleado.dependencia.nombre}, Año de ingreso: ${empleado.añoIngreso}")
+                    println("Empleado con más tiempo en la empresa: Nombre: ${empleado.nombre}, Dependencia: ${empleado.dependencia.nombre}, Año de ingreso: ${empleado.anioIngreso}")
                 } else {
                     println("No hay empleados en la empresa.")
                 }
@@ -201,31 +190,30 @@ fun main() {
     }
 }
 
-// Función para gestionar empleados
 fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
     while (true) {
         println("\n1. Añadir empleado")
         println("2. Eliminar empleado")
         println("3. Actualizar empleado")
         println("4. Buscar empleado")
-        println("5. Volver al menú principal")
+        println("5. Gestionar subordinados")
+        println("6. Ver subordinados de un empleado")
+        println("7. Volver al menú principal")
         print("Selecciona una opción: ")
 
         when (scanner.nextInt()) {
             1 -> {
-                // Añadir empleado
                 println("Introduce el nombre del empleado: ")
                 val nombre = scanner.next()
                 println("Introduce el documento de identidad del empleado: ")
                 val docId = scanner.next()
 
                 val sexo = seleccionarSexo(scanner)
-                
+
                 println("Introduce el correo electrónico del empleado: ")
                 val correo = scanner.next()
                 println("Introduce el salario del empleado: ")
                 val salario = scanner.nextDouble()
-                // Selección de dependencia
                 val dependencias = listOf("ventas", "recursos humanos", "gerencia", "operativo")
                 var dependencia: Dependencia?
                 while (true) {
@@ -240,26 +228,23 @@ fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
                     }
                 }
                 println("Introduce el año de ingreso del empleado: ")
-                val añoIngreso = scanner.nextInt()
+                val anioIngreso = scanner.nextInt()
                 println("Introduce el nombre del cargo del empleado: ")
                 val nombreCargo = scanner.next()
                 println("Introduce el nivel jerárquico del cargo del empleado: ")
                 val nivelJerarquico = scanner.nextInt()
-
                 val cargo = Cargo(nombreCargo, nivelJerarquico)
-                val empleado = Empleado(nombre, docId, sexo, correo, salario, dependencia, añoIngreso, cargo)
+                val empleado = Empleado(nombre, docId, sexo, correo, salario, dependencia, anioIngreso, cargo)
                 empresa.añadirEmpleado(empleado)
                 println("Empleado añadido correctamente.")
             }
             2 -> {
-                // Eliminar empleado
                 println("Introduce el documento de identidad del empleado a eliminar: ")
                 val docId = scanner.next()
                 empresa.eliminarEmpleado(docId)
                 println("Empleado eliminado correctamente.")
             }
             3 -> {
-                // Actualizar empleado
                 println("Introduce el documento de identidad del empleado a actualizar: ")
                 val docId = scanner.next()
                 val empleadoExistente = empresa.buscarEmpleado(docId)
@@ -268,12 +253,11 @@ fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
                     val nombre = scanner.next()
 
                     val sexo = seleccionarSexo(scanner)
-                    
+
                     println("Introduce el nuevo correo electrónico del empleado: ")
                     val correo = scanner.next()
                     println("Introduce el nuevo salario del empleado: ")
                     val salario = scanner.nextDouble()
-                    // Selección de dependencia
                     val dependencias = listOf("ventas", "recursos humanos", "gerencia", "operativo")
                     var dependencia: Dependencia?
                     while (true) {
@@ -288,14 +272,14 @@ fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
                         }
                     }
                     println("Introduce el nuevo año de ingreso del empleado: ")
-                    val añoIngreso = scanner.nextInt()
+                    val anioIngreso = scanner.nextInt()
                     println("Introduce el nuevo nombre del cargo del empleado: ")
                     val nombreCargo = scanner.next()
                     println("Introduce el nuevo nivel jerárquico del cargo del empleado: ")
                     val nivelJerarquico = scanner.nextInt()
 
                     val cargo = Cargo(nombreCargo, nivelJerarquico)
-                    val nuevoEmpleado = Empleado(nombre, docId, sexo, correo, salario, dependencia, añoIngreso, cargo)
+                    val nuevoEmpleado = Empleado(nombre, docId, sexo, correo, salario, dependencia, anioIngreso, cargo)
                     empresa.actualizarEmpleado(docId, nuevoEmpleado)
                     println("Empleado actualizado correctamente.")
                 } else {
@@ -303,18 +287,37 @@ fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
                 }
             }
             4 -> {
-                // Buscar empleado
                 println("Introduce el documento de identidad del empleado a buscar: ")
                 val docId = scanner.next()
                 val empleado = empresa.buscarEmpleado(docId)
                 if (empleado != null) {
-                    println("Empleado encontrado: Nombre: ${empleado.nombre}, Sexo: ${empleado.sexo}, Correo: ${empleado.correoElectronico}, Salario: ${empleado.salario}, Dependencia: ${empleado.dependencia.nombre}, Año de ingreso: ${empleado.añoIngreso}, Cargo: ${empleado.cargo.nombre},  Nivel jerárquico: ${empleado.cargo.nivelJerarquico}")
+                    println("Empleado encontrado: Nombre: ${empleado.nombre}, Sexo: ${empleado.sexo}, Correo: ${empleado.correoElectronico}, Salario: ${empleado.salario}, Dependencia: ${empleado.dependencia.nombre}, Año de ingreso: ${empleado.anioIngreso}, Cargo: ${empleado.cargo.nombre}, Nivel jerárquico: ${empleado.cargo.nivelJerarquico}")
 
                 } else {
                     println("Empleado no encontrado.")
                 }
             }
             5 -> {
+                gestionarSubordinados(scanner, empresa)
+            }
+            6 -> {
+                println("Introduce el documento de identidad del empleado para ver sus subordinados: ")
+                val docId = scanner.next()
+                val empleado = empresa.buscarEmpleado(docId)
+                if (empleado != null) {
+                    if (empleado.subordinados.isNotEmpty()) {
+                        println("Subordinados de ${empleado.nombre}:")
+                        empleado.subordinados.forEach {
+                            println("Nombre: ${it.nombre}, ID: ${it.documentoIdentidad}")
+                        }
+                    } else {
+                        println("El empleado no tiene subordinados.")
+                    }
+                } else {
+                    println("Empleado no encontrado.")
+                }
+            }
+            7 -> {
                 println("Volviendo al menú principal...")
                 break
             }
@@ -323,7 +326,56 @@ fun gestionarEmpleados(scanner: Scanner, empresa: Empresa) {
     }
 }
 
-// Función para gestionar clientes
+fun gestionarSubordinados(scanner: Scanner, empresa: Empresa) {
+    println("Introduce el documento de identidad del jefe para gestionar sus subordinados: ")
+    val docId = scanner.next()
+    val jefe = empresa.buscarEmpleado(docId)
+    if (jefe != null) {
+        while (true) {
+            println("\n1. Añadir subordinado")
+            println("2. Eliminar subordinado")
+            println("3. Volver al menú de empleados")
+            print("Selecciona una opción: ")
+
+            when (scanner.nextInt()) {
+                1 -> {
+                    println("Introduce el documento de identidad del subordinado a añadir: ")
+                    val docSubordinado = scanner.next()
+                    val subordinado = empresa.buscarEmpleado(docSubordinado)
+                    if (subordinado != null && subordinado.documentoIdentidad != jefe.documentoIdentidad) {
+                        if (jefe.subordinados.contains(subordinado)) {
+                            println("El subordinado ya está en la lista.")
+                        } else {
+                            jefe.subordinados.add(subordinado)
+                            println("Subordinado añadido correctamente.")
+                        }
+                    } else {
+                        println("Subordinado no encontrado o el documento de identidad es el mismo que el del jefe.")
+                    }
+                }
+                2 -> {
+                    println("Introduce el documento de identidad del subordinado a eliminar: ")
+                    val docSubordinado = scanner.next()
+                    val subordinado = jefe.subordinados.find { it.documentoIdentidad == docSubordinado }
+                    if (subordinado != null) {
+                        jefe.subordinados.remove(subordinado)
+                        println("Subordinado eliminado correctamente.")
+                    } else {
+                        println("Subordinado no encontrado.")
+                    }
+                }
+                3 -> {
+                    println("Volviendo al menú de empleados...")
+                    break
+                }
+                else -> println("Opción no válida. Inténtalo de nuevo.")
+            }
+        }
+    } else {
+        println("Empleado no encontrado.")
+    }
+}
+
 fun gestionarClientes(scanner: Scanner, empresa: Empresa) {
     while (true) {
         println("\n1. Añadir cliente")
@@ -335,14 +387,13 @@ fun gestionarClientes(scanner: Scanner, empresa: Empresa) {
 
         when (scanner.nextInt()) {
             1 -> {
-                // Añadir cliente
                 println("Introduce el nombre del cliente: ")
                 val nombre = scanner.next()
                 println("Introduce el documento de identidad del cliente: ")
                 val docId = scanner.next()
 
                 val sexo = seleccionarSexo(scanner)
-                
+
                 println("Introduce el correo electrónico del cliente: ")
                 val correo = scanner.next()
                 println("Introduce la dirección del cliente: ")
@@ -355,14 +406,12 @@ fun gestionarClientes(scanner: Scanner, empresa: Empresa) {
                 println("Cliente añadido correctamente.")
             }
             2 -> {
-                // Eliminar cliente
                 println("Introduce el documento de identidad del cliente a eliminar: ")
                 val docId = scanner.next()
                 empresa.eliminarCliente(docId)
                 println("Cliente eliminado correctamente.")
             }
             3 -> {
-                // Actualizar cliente
                 println("Introduce el documento de identidad del cliente a actualizar: ")
                 val docId = scanner.next()
                 val clienteExistente = empresa.buscarCliente(docId)
@@ -387,7 +436,6 @@ fun gestionarClientes(scanner: Scanner, empresa: Empresa) {
                 }
             }
             4 -> {
-                // Buscar cliente
                 println("Introduce el documento de identidad del cliente a buscar: ")
                 val docId = scanner.next()
                 val cliente = empresa.buscarCliente(docId)
@@ -411,7 +459,7 @@ fun seleccionarSexo(scanner: Scanner): String {
         println("Selecciona el sexo:")
         println("1. Masculino")
         println("2. Femenino")
-        println("3. Otros")
+        println("3. Otro")
         val seleccion = scanner.nextInt()
         return when (seleccion) {
             1 -> "Masculino"
@@ -419,7 +467,7 @@ fun seleccionarSexo(scanner: Scanner): String {
             3 -> "Otro"
             else -> {
                 println("Opción no válida. Por favor, selecciona una opción válida.")
-                continue  // Vuelve a pedir la selección de sexo
+                continue
             }
         }
     }
